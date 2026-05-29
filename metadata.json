@@ -1,0 +1,6 @@
+{
+  "name": "Routine Reminders",
+  "description": "A scheduled notification reminder system that lets you import, edit, and schedule multiple routines of tasks.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
