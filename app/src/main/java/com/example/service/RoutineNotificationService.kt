@@ -32,8 +32,6 @@ class RoutineNotificationService : Service() {
         }
     }
 
-    private var backupCheckJob: Job? = null
-
     companion object {
         private const val TAG = "RoutineService"
         const val CHANNEL_SERVICE_ID = "routine_service_channel"
@@ -41,17 +39,25 @@ class RoutineNotificationService : Service() {
         const val SERVICE_NOTIFICATION_ID = 1001
 
         fun start(context: Context) {
-            val intent = Intent(context, RoutineNotificationService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
+            try {
+                val intent = Intent(context, RoutineNotificationService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed starting foreground service: ${e.message}", e)
             }
         }
 
         fun stop(context: Context) {
-            val intent = Intent(context, RoutineNotificationService::class.java)
-            context.stopService(intent)
+            try {
+                val intent = Intent(context, RoutineNotificationService::class.java)
+                context.stopService(intent)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed stopping foreground service: ${e.message}", e)
+            }
         }
     }
 
@@ -59,14 +65,33 @@ class RoutineNotificationService : Service() {
         super.onCreate()
         Log.d(TAG, "Service Created")
         createNotificationChannels()
-        registerReceiver(timeTickReceiver, IntentFilter(Intent.ACTION_TIME_TICK))
-        
-        // Start backup checkout loop
-        startBackupCheckLoop()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(timeTickReceiver, IntentFilter(Intent.ACTION_TIME_TICK), RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(timeTickReceiver, IntentFilter(Intent.ACTION_TIME_TICK))
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "Service onStartCommand")
+        
+        // Immediately start foreground with a placeholder to prevent OS crash ("Context.startForegroundService() did not then call Service.startForeground()")
+        try {
+            val initialNotification = buildServiceNotification("Syncing routine schedule...", 0)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    SERVICE_NOTIFICATION_ID, 
+                    initialNotification, 
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                )
+            } else {
+                startForeground(SERVICE_NOTIFICATION_ID, initialNotification)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to call startForeground inside service: ${e.message}", e)
+            stopSelf()
+            return START_NOT_STICKY
+        }
         
         // Load active routine from Database
         serviceScope.launch {
@@ -77,7 +102,8 @@ class RoutineNotificationService : Service() {
                 if (active != null) {
                     activeRoutine = active
                     val notification = buildServiceNotification(active.name, active.getTasks().size)
-                    startForeground(SERVICE_NOTIFICATION_ID, notification)
+                    val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    notificationManager.notify(SERVICE_NOTIFICATION_ID, notification)
                     Log.d(TAG, "Started foreground with routine: ${active.name}")
                     // Immediate tick check when service starts
                     checkAndTriggerNotifications()
@@ -89,17 +115,6 @@ class RoutineNotificationService : Service() {
         }
 
         return START_STICKY
-    }
-
-    private fun startBackupCheckLoop() {
-        backupCheckJob?.cancel()
-        backupCheckJob = serviceScope.launch {
-            while (isActive) {
-                checkAndTriggerNotifications()
-                // Sleep for 30 seconds before checking again
-                delay(30000)
-            }
-        }
     }
 
     private fun isNotificationEnabled(): Boolean {

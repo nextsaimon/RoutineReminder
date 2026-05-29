@@ -10,9 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,6 +31,34 @@ fun HomeScreen(
 ) {
     val routines by viewModel.allRoutines.collectAsState()
     val activeRoutine by viewModel.activeRoutine.collectAsState()
+    var routineToDelete by remember { mutableStateOf<RoutineEntity?>(null) }
+
+    if (routineToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { routineToDelete = null },
+            title = { Text(text = "Delete Routine?") },
+            text = { Text(text = "Are you sure you want to delete \"${routineToDelete?.name}\"? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        routineToDelete?.let { viewModel.deleteRoutine(it) }
+                        routineToDelete = null
+                    },
+                    modifier = Modifier.testTag("confirm_delete_btn")
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { routineToDelete = null },
+                    modifier = Modifier.testTag("dismiss_delete_btn")
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Scaffold(
         modifier = modifier,
@@ -220,7 +246,7 @@ fun HomeScreen(
                             routine = routine,
                             onToggleActive = { viewModel.toggleRoutineActive(routine.id, routine.isActive) },
                             onEdit = { viewModel.navigateTo(Screen.AddEdit(routine.id)) },
-                            onDelete = { viewModel.deleteRoutine(routine) },
+                            onDelete = { routineToDelete = routine },
                             onClick = { viewModel.navigateTo(Screen.Detail(routine.id)) }
                         )
                     }
