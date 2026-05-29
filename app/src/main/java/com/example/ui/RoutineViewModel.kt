@@ -40,6 +40,7 @@ class RoutineViewModel(application: Application) : AndroidViewModel(application)
 
     // Editor States
     var editRoutineName = mutableStateOf("")
+    var editPlayRingtone = mutableStateOf(false)
     val editTasks = mutableStateListOf<Task>()
     var editErrorText = mutableStateOf<String?>(null)
 
@@ -73,6 +74,7 @@ class RoutineViewModel(application: Application) : AndroidViewModel(application)
                     val entity = repository.getRoutineById(rid)
                     if (entity != null) {
                         editRoutineName.value = entity.name
+                        editPlayRingtone.value = entity.playRingtone
                         editTasks.clear()
                         editTasks.addAll(entity.getTasks())
                     }
@@ -80,6 +82,7 @@ class RoutineViewModel(application: Application) : AndroidViewModel(application)
             } else {
                 // New routine
                 editRoutineName.value = ""
+                editPlayRingtone.value = false
                 editTasks.clear()
                 // Add one blank task by default
                 addNewBlankTask()
@@ -182,7 +185,7 @@ class RoutineViewModel(application: Application) : AndroidViewModel(application)
                 // Edit existing
                 val existing = repository.getRoutineById(routineIdToUpdate)
                 if (existing != null) {
-                    val updated = existing.copy(name = name, tasksJson = serializedTasks)
+                    val updated = existing.copy(name = name, tasksJson = serializedTasks, playRingtone = editPlayRingtone.value)
                     repository.update(updated)
                     // If this was active, restart service to reload task structure!
                     if (updated.isActive) {
@@ -191,7 +194,7 @@ class RoutineViewModel(application: Application) : AndroidViewModel(application)
                 }
             } else {
                 // Create new
-                val newEntity = RoutineEntity(name = name, tasksJson = serializedTasks, isActive = false)
+                val newEntity = RoutineEntity(name = name, tasksJson = serializedTasks, isActive = false, playRingtone = editPlayRingtone.value)
                 repository.insert(newEntity)
             }
 

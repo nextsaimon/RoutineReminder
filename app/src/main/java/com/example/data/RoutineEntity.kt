@@ -47,7 +47,8 @@ data class RoutineEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val name: String,
     val isActive: Boolean = false,
-    val tasksJson: String = "[]" // JSON representation of List<Task>
+    val tasksJson: String = "[]", // JSON representation of List<Task>
+    val playRingtone: Boolean = false
 ) {
     fun getTasks(): List<Task> {
         val list = mutableListOf<Task>()

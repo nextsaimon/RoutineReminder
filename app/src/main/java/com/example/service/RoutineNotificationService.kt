@@ -23,6 +23,7 @@ class RoutineNotificationService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private var activeRoutine: RoutineEntity? = null
     private var lastCheckedTime: String = ""
+    private var activeRingtone: android.media.Ringtone? = null
 
     private val timeTickReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -200,6 +201,36 @@ class RoutineNotificationService : Service() {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         // Unique notification ID per task match using task.id
         notificationManager.notify(task.id + 2000, notificationBuilder.build())
+
+        // Play 20-second alarm ringtone if routine option is enabled and system sound is enabled
+        val routine = activeRoutine
+        if (routine != null && routine.playRingtone && isSoundEnabled()) {
+            serviceScope.launch {
+                try {
+                    val ringtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    val ringtone = RingtoneManager.getRingtone(applicationContext, ringtoneUri)
+                    if (ringtone != null) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            ringtone.audioAttributes = android.media.AudioAttributes.Builder()
+                                .setUsage(android.media.AudioAttributes.USAGE_ALARM)
+                                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                .build()
+                        }
+                        activeRingtone?.stop()
+                        activeRingtone = ringtone
+                        ringtone.play()
+                        delay(20000)
+                        if (activeRingtone == ringtone && ringtone.isPlaying) {
+                            ringtone.stop()
+                            activeRingtone = null
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed playing alarm ringtone: ${e.message}", e)
+                }
+            }
+        }
     }
 
     private fun buildServiceNotification(routineName: String, taskCount: Int): Notification {
@@ -259,6 +290,11 @@ class RoutineNotificationService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         Log.d(TAG, "Service Destroyed")
+        try {
+            activeRingtone?.stop()
+        } catch (e: Exception) {
+            // ignore
+        }
         unregisterReceiver(timeTickReceiver)
         serviceJob.cancel()
     }
