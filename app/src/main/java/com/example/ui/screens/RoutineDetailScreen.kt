@@ -26,6 +26,7 @@ fun RoutineDetailScreen(
     routineId: Int,
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val routines by viewModel.allRoutines.collectAsState()
     val routine = routines.find { it.id == routineId }
 
@@ -49,6 +50,34 @@ fun RoutineDetailScreen(
                 },
                 actions = {
                     if (routine != null) {
+                        IconButton(
+                            onClick = {
+                                try {
+                                    val clipboardManager = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                    val clip = android.content.ClipData.newPlainText("Routine JSON", routine.tasksJson)
+                                    clipboardManager.setPrimaryClip(clip)
+                                    
+                                    val sendIntent = android.content.Intent().apply {
+                                        action = android.content.Intent.ACTION_SEND
+                                        putExtra(android.content.Intent.EXTRA_TEXT, routine.tasksJson)
+                                        type = "text/plain"
+                                    }
+                                    val shareIntent = android.content.Intent.createChooser(sendIntent, "Export: ${routine.name}")
+                                    context.startActivity(shareIntent)
+                                    
+                                    android.widget.Toast.makeText(context, "Copied JSON to clipboard & opened Share menu", android.widget.Toast.LENGTH_SHORT).show()
+                                } catch (e: Exception) {
+                                    android.widget.Toast.makeText(context, "Export error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.testTag("detail_export_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Export JSON",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                         IconButton(
                             onClick = { viewModel.navigateTo(Screen.AddEdit(routine.id)) },
                             modifier = Modifier.testTag("detail_edit_btn")

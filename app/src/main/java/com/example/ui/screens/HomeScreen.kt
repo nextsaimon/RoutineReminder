@@ -29,6 +29,7 @@ fun HomeScreen(
     viewModel: RoutineViewModel,
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val routines by viewModel.allRoutines.collectAsState()
     val activeRoutine by viewModel.activeRoutine.collectAsState()
     var routineToDelete by remember { mutableStateOf<RoutineEntity?>(null) }
@@ -247,6 +248,25 @@ fun HomeScreen(
                             onToggleActive = { viewModel.toggleRoutineActive(routine.id, routine.isActive) },
                             onEdit = { viewModel.navigateTo(Screen.AddEdit(routine.id)) },
                             onDelete = { routineToDelete = routine },
+                            onExport = {
+                                try {
+                                    val clipboardManager = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                    val clip = android.content.ClipData.newPlainText("Routine JSON", routine.tasksJson)
+                                    clipboardManager.setPrimaryClip(clip)
+                                    
+                                    val sendIntent = android.content.Intent().apply {
+                                        action = android.content.Intent.ACTION_SEND
+                                        putExtra(android.content.Intent.EXTRA_TEXT, routine.tasksJson)
+                                        type = "text/plain"
+                                    }
+                                    val shareIntent = android.content.Intent.createChooser(sendIntent, "Export: ${routine.name}")
+                                    context.startActivity(shareIntent)
+                                    
+                                    android.widget.Toast.makeText(context, "Copied JSON to clipboard & opened Share menu", android.widget.Toast.LENGTH_SHORT).show()
+                                } catch (e: Exception) {
+                                    android.widget.Toast.makeText(context, "Export error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            },
                             onClick = { viewModel.navigateTo(Screen.Detail(routine.id)) }
                         )
                     }
@@ -262,6 +282,7 @@ fun RoutineCard(
     onToggleActive: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onExport: () -> Unit,
     onClick: () -> Unit
 ) {
     val cardColor by animateColorAsState(
@@ -355,6 +376,20 @@ fun RoutineCard(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    IconButton(
+                        onClick = onExport,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .testTag("export_routine_${routine.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Export Routine",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
                     IconButton(
                         onClick = onEdit,
                         modifier = Modifier
