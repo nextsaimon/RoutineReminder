@@ -296,24 +296,6 @@ fun AddEditScreen(
                     onDelete = { viewModel.removeTaskAt(index) }
                 )
             }
-
-            // Bottom Add Blank Routine button
-            item {
-                Button(
-                    onClick = { viewModel.addNewBlankTask() },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("add_blank_card_btn")
-                ) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Add Blank Reminder Task Card")
-                }
-            }
         }
     }
 }

@@ -123,6 +123,7 @@ class RoutineViewModel(application: Application) : AndroidViewModel(application)
     fun addNewBlankTask() {
         val nextId = (editTasks.maxOfOrNull { it.id } ?: 0) + 1
         editTasks.add(
+            0,
             Task(
                 id = nextId,
                 time = "08:00",

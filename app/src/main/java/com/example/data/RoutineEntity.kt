@@ -65,7 +65,7 @@ data class RoutineEntity(
     companion object {
         fun serializeTasks(tasks: List<Task>): String {
             val arr = JSONArray()
-            tasks.forEach { arr.put(it.toJson()) }
+            tasks.sortedBy { it.id }.forEach { arr.put(it.toJson()) }
             return arr.toString()
         }
     }
