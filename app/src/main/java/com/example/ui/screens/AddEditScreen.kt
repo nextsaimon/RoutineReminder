@@ -155,7 +155,7 @@ fun AddEditScreen(
                 )
             }
 
-            // Play 20s Alarm Ringtone toggle
+            // Play Routine Alarm Ringtone toggle & duration option
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -165,32 +165,78 @@ fun AddEditScreen(
                     shape = MaterialTheme.shapes.medium,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(14.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Play 20s Alarm Ringtone",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Play loud alarm sound for 20 seconds when triggered",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Play Routine Alarm Ringtone",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Play loud alarm sound for all tasks in this routine",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = viewModel.editPlayRingtone.value,
+                                onCheckedChange = { viewModel.editPlayRingtone.value = it },
+                                modifier = Modifier.testTag("ringtone_toggle")
                             )
                         }
-                        Switch(
-                            checked = viewModel.editPlayRingtone.value,
-                            onCheckedChange = { viewModel.editPlayRingtone.value = it },
-                            modifier = Modifier.testTag("ringtone_toggle")
-                        )
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Alarm Duration (seconds)",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "How long the alarm rings before stopping",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            
+                            OutlinedTextField(
+                                value = if (viewModel.editRingtoneDuration.value == 0) "" else viewModel.editRingtoneDuration.value.toString(),
+                                onValueChange = { newValue ->
+                                    val filtered = newValue.filter { it.isDigit() }
+                                    viewModel.editRingtoneDuration.value = if (filtered.isEmpty()) 0 else filtered.toIntOrNull() ?: 20
+                                },
+                                modifier = Modifier
+                                    .width(80.dp)
+                                    .testTag("ringtone_duration_input"),
+                                singleLine = true,
+                                textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                                )
+                            )
+                        }
                     }
                 }
             }
@@ -333,6 +379,7 @@ fun AddEditScreen(
                     onTitleChange = { viewModel.updateTaskTitle(index, it) },
                     onMessageChange = { viewModel.updateTaskMessage(index, it) },
                     onDayToggle = { viewModel.toggleDayInTask(index, it) },
+                    onRingtoneToggle = { viewModel.toggleCardRingtone(index) },
                     onDelete = { viewModel.removeTaskAt(index) }
                 )
             }
@@ -348,6 +395,7 @@ fun TaskEditCard(
     onTitleChange: (String) -> Unit,
     onMessageChange: (String) -> Unit,
     onDayToggle: (Int) -> Unit,
+    onRingtoneToggle: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
@@ -470,6 +518,45 @@ fun TaskEditCard(
                             .testTag("day_chip_${index}_$i")
                     )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Card Alarm Ringtone Toggle
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = "Play Alarm for this card",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Ring even if global routine alarm is off",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Switch(
+                    checked = task.playRingtone,
+                    onCheckedChange = { onRingtoneToggle() },
+                    modifier = Modifier.testTag("task_ringtone_toggle_$index")
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))

@@ -41,6 +41,7 @@ class RoutineViewModel(application: Application) : AndroidViewModel(application)
     // Editor States
     var editRoutineName = mutableStateOf("")
     var editPlayRingtone = mutableStateOf(false)
+    var editRingtoneDuration = mutableStateOf(20)
     val editTasks = mutableStateListOf<Task>()
     var editErrorText = mutableStateOf<String?>(null)
 
@@ -74,7 +75,8 @@ class RoutineViewModel(application: Application) : AndroidViewModel(application)
                     val entity = repository.getRoutineById(rid)
                     if (entity != null) {
                         editRoutineName.value = entity.name
-                        editPlayRingtone.value = entity.playRingtone
+                        editPlayRingtone.value = entity.playRingtone ?: false
+                        editRingtoneDuration.value = entity.ringtoneDuration ?: 20
                         editTasks.clear()
                         editTasks.addAll(entity.getTasks())
                     }
@@ -83,6 +85,7 @@ class RoutineViewModel(application: Application) : AndroidViewModel(application)
                 // New routine
                 editRoutineName.value = ""
                 editPlayRingtone.value = false
+                editRingtoneDuration.value = 20
                 editTasks.clear()
                 // Add one blank task by default
                 addNewBlankTask()
@@ -132,9 +135,17 @@ class RoutineViewModel(application: Application) : AndroidViewModel(application)
                 time = "08:00",
                 days = listOf(1, 2, 3, 4, 5), // Weekdays Mon-Fri default
                 title = "New Reminder",
-                message = "Task reminder message"
+                message = "Task reminder message",
+                playRingtone = false
             )
         )
+    }
+
+    fun toggleCardRingtone(taskIndex: Int) {
+        if (taskIndex in editTasks.indices) {
+            val task = editTasks[taskIndex]
+            editTasks[taskIndex] = task.copy(playRingtone = !task.playRingtone)
+        }
     }
 
     fun removeTaskAt(index: Int) {
@@ -185,7 +196,12 @@ class RoutineViewModel(application: Application) : AndroidViewModel(application)
                 // Edit existing
                 val existing = repository.getRoutineById(routineIdToUpdate)
                 if (existing != null) {
-                    val updated = existing.copy(name = name, tasksJson = serializedTasks, playRingtone = editPlayRingtone.value)
+                    val updated = existing.copy(
+                        name = name,
+                        tasksJson = serializedTasks,
+                        playRingtone = editPlayRingtone.value,
+                        ringtoneDuration = editRingtoneDuration.value
+                    )
                     repository.update(updated)
                     // If this was active, restart service to reload task structure!
                     if (updated.isActive) {
@@ -194,7 +210,13 @@ class RoutineViewModel(application: Application) : AndroidViewModel(application)
                 }
             } else {
                 // Create new
-                val newEntity = RoutineEntity(name = name, tasksJson = serializedTasks, isActive = false, playRingtone = editPlayRingtone.value)
+                val newEntity = RoutineEntity(
+                    name = name,
+                    tasksJson = serializedTasks,
+                    isActive = false,
+                    playRingtone = editPlayRingtone.value,
+                    ringtoneDuration = editRingtoneDuration.value
+                )
                 repository.insert(newEntity)
             }
 

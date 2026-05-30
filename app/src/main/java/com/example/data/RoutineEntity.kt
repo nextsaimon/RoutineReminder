@@ -10,7 +10,8 @@ data class Task(
     val time: String,      // "06:00"
     val days: List<Int>,   // 0 = Sunday, 1 = Monday ... 6 = Saturday
     val title: String,
-    val message: String
+    val message: String,
+    val playRingtone: Boolean = false
 ) {
     fun toJson(): JSONObject {
         val obj = JSONObject()
@@ -21,6 +22,7 @@ data class Task(
         obj.put("days", daysArray)
         obj.put("title", title)
         obj.put("message", message)
+        obj.put("playRingtone", playRingtone)
         return obj
     }
 
@@ -37,7 +39,8 @@ data class Task(
             }
             val title = obj.optString("title", "")
             val message = obj.optString("message", "")
-            return Task(id, time, days, title, message)
+            val playRingtone = obj.optBoolean("playRingtone", false)
+            return Task(id, time, days, title, message, playRingtone)
         }
     }
 }
@@ -48,7 +51,8 @@ data class RoutineEntity(
     val name: String,
     val isActive: Boolean = false,
     val tasksJson: String = "[]", // JSON representation of List<Task>
-    val playRingtone: Boolean = false
+    val playRingtone: Boolean = false,
+    val ringtoneDuration: Int = 20
 ) {
     fun getTasks(): List<Task> {
         val list = mutableListOf<Task>()

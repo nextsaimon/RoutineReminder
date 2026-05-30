@@ -202,9 +202,9 @@ class RoutineNotificationService : Service() {
         // Unique notification ID per task match using task.id
         notificationManager.notify(task.id + 2000, notificationBuilder.build())
 
-        // Play 20-second alarm ringtone if routine option is enabled and system sound is enabled
+        // Play alarm ringtone if global routine alarm OR individual task card alarm is enabled
         val routine = activeRoutine
-        if (routine != null && routine.playRingtone && isSoundEnabled()) {
+        if (routine != null && (routine.playRingtone == true || task.playRingtone) && isSoundEnabled()) {
             serviceScope.launch {
                 try {
                     val ringtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
@@ -220,7 +220,8 @@ class RoutineNotificationService : Service() {
                         activeRingtone?.stop()
                         activeRingtone = ringtone
                         ringtone.play()
-                        delay(20000)
+                        val durationMs = ((routine.ringtoneDuration ?: 20).coerceAtLeast(1) * 1000L)
+                        delay(durationMs)
                         if (activeRingtone == ringtone && ringtone.isPlaying) {
                             ringtone.stop()
                             activeRingtone = null
