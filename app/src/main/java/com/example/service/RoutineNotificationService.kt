@@ -33,11 +33,36 @@ class RoutineNotificationService : Service() {
         }
     }
 
+    private val volumeButtonReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "android.media.VOLUME_CHANGED_ACTION") {
+                Log.d(TAG, "Volume changed/button pressed, stopping alarm ringtone")
+                stopActiveRingtone()
+            }
+        }
+    }
+
+    private fun stopActiveRingtone() {
+        try {
+            activeRingtone?.let { ringtone ->
+                if (ringtone.isPlaying) {
+                    ringtone.stop()
+                    Log.d(TAG, "Ringtone stopped successfully")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping active ringtone: ${e.message}", e)
+        } finally {
+            activeRingtone = null
+        }
+    }
+
     companion object {
         private const val TAG = "RoutineService"
         const val CHANNEL_SERVICE_ID = "routine_service_channel"
         const val CHANNEL_ALARM_ID = "routine_alarm_channel"
         const val SERVICE_NOTIFICATION_ID = 1001
+        const val ACTION_STOP_ALARM = "com.example.service.ACTION_STOP_ALARM"
 
         fun start(context: Context) {
             try {
@@ -68,8 +93,10 @@ class RoutineNotificationService : Service() {
         createNotificationChannels()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(timeTickReceiver, IntentFilter(Intent.ACTION_TIME_TICK), RECEIVER_NOT_EXPORTED)
+            registerReceiver(volumeButtonReceiver, IntentFilter("android.media.VOLUME_CHANGED_ACTION"), RECEIVER_EXPORTED)
         } else {
             registerReceiver(timeTickReceiver, IntentFilter(Intent.ACTION_TIME_TICK))
+            registerReceiver(volumeButtonReceiver, IntentFilter("android.media.VOLUME_CHANGED_ACTION"))
         }
     }
 
@@ -92,6 +119,17 @@ class RoutineNotificationService : Service() {
             Log.e(TAG, "Failed to call startForeground inside service: ${e.message}", e)
             stopSelf()
             return START_NOT_STICKY
+        }
+
+        if (intent?.action == ACTION_STOP_ALARM) {
+            Log.d(TAG, "onStartCommand received ACTION_STOP_ALARM")
+            val notificationId = intent.getIntExtra("NOTIFICATION_ID", -1)
+            if (notificationId != -1) {
+                val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.cancel(notificationId)
+            }
+            stopActiveRingtone()
+            return START_STICKY
         }
         
         // Load active routine from Database
@@ -191,6 +229,24 @@ class RoutineNotificationService : Service() {
             .setAutoCancel(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
+        // Create the stop alarm action button
+        val stopNotificationId = task.id + 2000
+        val stopIntent = Intent(this, RoutineNotificationService::class.java).apply {
+            action = ACTION_STOP_ALARM
+            putExtra("NOTIFICATION_ID", stopNotificationId)
+        }
+        val stopPendingIntent = PendingIntent.getService(
+            this,
+            task.id + 5000,
+            stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        notificationBuilder.addAction(
+            android.R.drawable.ic_menu_close_clear_cancel,
+            "Stop Alarm",
+            stopPendingIntent
+        )
+
         if (soundUri != null) {
             notificationBuilder.setSound(soundUri)
         }
@@ -200,7 +256,7 @@ class RoutineNotificationService : Service() {
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         // Unique notification ID per task match using task.id
-        notificationManager.notify(task.id + 2000, notificationBuilder.build())
+        notificationManager.notify(stopNotificationId, notificationBuilder.build())
 
         // Play alarm ringtone if global routine alarm OR individual task card alarm is enabled
         val routine = activeRoutine
@@ -292,11 +348,20 @@ class RoutineNotificationService : Service() {
         super.onDestroy()
         Log.d(TAG, "Service Destroyed")
         try {
-            activeRingtone?.stop()
+            stopActiveRingtone()
         } catch (e: Exception) {
             // ignore
         }
-        unregisterReceiver(timeTickReceiver)
+        try {
+            unregisterReceiver(timeTickReceiver)
+        } catch (e: Exception) {
+            // ignore
+        }
+        try {
+            unregisterReceiver(volumeButtonReceiver)
+        } catch (e: Exception) {
+            // ignore
+        }
         serviceJob.cancel()
     }
 

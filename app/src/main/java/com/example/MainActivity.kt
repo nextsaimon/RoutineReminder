@@ -1,10 +1,12 @@
 package com.example
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -81,5 +83,20 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            Log.d("MainActivity", "Volume key pressed while app is active, stopping alarm")
+            val stopIntent = Intent(this, com.example.service.RoutineNotificationService::class.java).apply {
+                action = com.example.service.RoutineNotificationService.ACTION_STOP_ALARM
+            }
+            try {
+                startService(stopIntent)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Failed to startService to stop alarm: ${e.message}", e)
+            }
+        }
+        return super.onKeyDown(keyCode, event)
     }
 }
